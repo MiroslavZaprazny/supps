@@ -1,0 +1,5 @@
+discovery:
+  base_url: http://brainmarket.sk/
+  category_pages:
+  - znacka/brainmax/
+  - znacka/brainmax-pure/
