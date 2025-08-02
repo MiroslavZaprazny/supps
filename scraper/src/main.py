@@ -1,2 +1,4 @@
+from logger import init_logger
+
 if __name__ == "__main__":
-    print("brr")
+    init_logger()
