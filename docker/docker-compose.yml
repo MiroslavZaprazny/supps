@@ -1,0 +1,58 @@
+networks:
+  scraper:
+  logging:
+
+
+services:
+  elasticsearch:
+    image: elasticsearch:9.1.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - logging
+
+  fluent-bit:
+    container_name: fluent-bit
+    image: fluent/fluent-bit:4.0.5
+    volumes:
+      - ./config/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./config/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
+      - ./config/fluent-bit/set_service_name.lua:/fluent-bit/etc/set_service_name.lua
+    ports:
+      - "24224:24224"
+    networks:
+      - logging
+      - scraper
+    depends_on:
+      - elasticsearch
+
+  scraper:
+    container_name: scraper
+    build:
+      context: ../scraper
+      dockerfile: ../scraper/Dockerfile
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: "localhost:24224"
+    networks:
+      - scraper
+    depends_on:
+      - fluent-bit
+
+  kibana:
+    image: kibana:9.1.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - logging
+    depends_on:
+      - elasticsearch

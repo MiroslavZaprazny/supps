@@ -1,36 +1,28 @@
 import logging
-from elasticsearch import Elasticsearch
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
+import json
 
-class ElasticsearchHandler(logging.Handler):
-    def __init__(self, host: str, idx: str = 'scraper'):
-        super().__init__()
-        self.inner = Elasticsearch([host])
-        self.idx = idx
-
-    def emit(self, record: logging.LogRecord) -> None:
+class JsonLogFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
         log_entry: dict[str, str|int] = {
-            'timestamp': datetime.now().isoformat(),
-            'level': record.levelname,
-            'message': record.getMessage(),
-            'module': record.module,
-            'funcName': record.funcName,
-            'lineno': record.lineno
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno
         }
-        
-        try:
-            self.inner.index(
-                index=f"{self.idx}-{datetime.now().strftime('%Y-%m')}",
-                body=log_entry
-            )
-        except Exception as e:
-            print(f"Failed to log to Elasticsearch: {e}")
 
-def init_logger():
-    logger = logging.getLogger(__name__)
+        return json.dumps(log_entry)
+
+
+def init_logger(): 
+    logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    es_handler = ElasticsearchHandler('http://localhost:9200')
-    logger.addHandler(es_handler)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(JsonLogFormatter())
 
-    logger.info("Halo funguje to?")
+    logger.addHandler(console_handler)
