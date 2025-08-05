@@ -1,23 +1,7 @@
-from abc import ABC, abstractmethod
 import requests
 import logging
-
-class ProductDiscovery(ABC):
-    @abstractmethod
-    def get_product_urls_from_listing_page(self, page_content: str) -> list[str]:
-        pass
-
-class BrainMarketProductDiscovery(ProductDiscovery):
-    def get_product_urls_from_listing_page(self, page_content: str) -> list[str]:
-        return []
-
-class SiteConfig:
-    def __init__(self, base_url: str, category_page_urls: list[str]):
-        self.base_url = base_url
-        self.category_page_urls: list[str] = []
-
-        for category_page_url in category_page_urls:
-            self.category_page_urls.append(f"{base_url}{category_page_url}")
+from discovery import ProductDiscovery, BrainMarketProductDiscovery
+from sites import SiteConfig, Site
 
 class Crawler:
     def __init__(self, site_config: SiteConfig, product_discovery: ProductDiscovery):
@@ -40,3 +24,11 @@ class Crawler:
 
             except ConnectionError as e:
                 logging.error(f"Request with uri {category_page_url} failed with error: {e}")
+
+class CrawlerFactory:
+    def get_crawler(self, site: Site) -> Crawler:
+        match site:
+            case Site.BRAINMARKET:
+                return Crawler(SiteConfig(site), BrainMarketProductDiscovery())
+            case _:
+                raise Exception(f"Unimplemented site {site} crawler")

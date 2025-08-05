@@ -31,8 +31,8 @@ services:
     depends_on:
       - elasticsearch
 
-  scraper:
-    container_name: scraper
+  brainmarket-scraper:
+    container_name: brainmarket-scraper
     build:
       context: ../scraper
       dockerfile: ../scraper/Dockerfile
@@ -40,6 +40,8 @@ services:
       driver: fluentd
       options:
         fluentd-address: "localhost:24224"
+    environment:
+      - SITE=brainmarket
     networks:
       - scraper
     depends_on:
