@@ -1,16 +1,16 @@
 import requests
 import logging
 from discovery import ProductDiscovery, BrainMarketProductDiscovery
-from sites import SiteConfig, Site
+from brand import BrandConfig, Brand
 
 class Crawler:
-    def __init__(self, site_config: SiteConfig, product_discovery: ProductDiscovery):
-        self._site_config = site_config
+    def __init__(self, brand_config: BrandConfig, product_discovery: ProductDiscovery):
+        self._brand_config = brand_config
         self._product_discovery = product_discovery
 
     def crawl(self):
         # todo run concurrently
-        for category_page_url in self._site_config.category_page_urls:
+        for category_page_url in self._brand_config.category_page_urls:
             try:
                 res = requests.get(category_page_url)
                 if res.status_code != 200:
@@ -26,9 +26,9 @@ class Crawler:
                 logging.error(f"Request with uri {category_page_url} failed with error: {e}")
 
 class CrawlerFactory:
-    def get_crawler(self, site: Site) -> Crawler:
-        match site:
-            case Site.BRAINMARKET:
-                return Crawler(SiteConfig(site), BrainMarketProductDiscovery())
+    def get_crawler(self, brand: Brand) -> Crawler:
+        match brand:
+            case Brand.BRAINMARKET:
+                return Crawler(BrandConfig(brand), BrainMarketProductDiscovery())
             case _:
                 raise Exception(f"Unimplemented site {site} crawler")
