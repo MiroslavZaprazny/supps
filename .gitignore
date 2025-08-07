@@ -1,3 +1,4 @@
 scraper/venv
+scraper/.env
 scraper/src/__pycache__
 .vscode

@@ -13,7 +13,7 @@ if __name__ == "__main__":
     try:
         brand = Brand(args[1])
     except ValueError:
-        print(f"Brand {args[1]} is not supported available options are {list(Brand)}")
+        print(f"Brand {args[1]} is not supported, available options are {list(Brand)}")
         exit(1)
 
     init_logger()

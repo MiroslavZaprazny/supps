@@ -7,6 +7,7 @@ services:
   elasticsearch:
     image: elasticsearch:9.1.0
     container_name: elasticsearch
+    restart: unless-stopped
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -19,6 +20,7 @@ services:
   fluent-bit:
     container_name: fluent-bit
     image: fluent/fluent-bit:4.0.5
+    restart: unless-stopped
     volumes:
       - ./config/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
       - ./config/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
@@ -31,6 +33,19 @@ services:
     depends_on:
       - elasticsearch
 
+  postgres:
+    container_name: postgres
+    image: postgres:14.18
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: secret
+      POSTGRES_PASSWORD: superSecret
+    networks:
+      - scraper
+
   brainmarket-scraper:
     container_name: brainmarket-scraper
     build:
@@ -42,14 +57,17 @@ services:
         fluentd-address: "localhost:24224"
     environment:
       - SITE=brainmarket
+      - DATABASE_URL=postgresql://secret:superSecret@postgres:5432/app
     networks:
       - scraper
     depends_on:
       - fluent-bit
+      - postgres
 
   kibana:
     image: kibana:9.1.0
     container_name: kibana
+    restart: unless-stopped
     ports:
       - "5601:5601"
     environment:
