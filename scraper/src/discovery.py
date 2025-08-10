@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from models import Product
 from decimal import Decimal
 from datetime import datetime
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 class SiteParser(ABC):
     @abstractmethod
-    def parse_paginated_product_listing_links(self, page_content: str) -> list[str]:
+    def parse_paginated_product_listing_paths(self, page_content: str) -> list[str]:
         pass
 
     @abstractmethod
@@ -18,23 +18,30 @@ class SiteParser(ABC):
         pass
 
 class BrainMarketSiteParser(SiteParser):
-    def parse_paginated_product_listing_links(self, page_content: str) -> list[str]:
-        # parser = BeautifulSoup(page_content, features='html.parser')
-        # pagination_div = parser.find(class_='pagination')
-        # for child in pagination_div.children:
+    def parse_paginated_product_listing_paths(self, page_content: str) -> list[str]:
+        parser = BeautifulSoup(page_content, features='html.parser')
+        pagination_div = parser.find(class_='pagination')
+        assert isinstance(pagination_div, Tag)
 
-        # last_page_number = pagination_div.children
-        return []
+        last_page_element = parser.find(attrs={'data-testid': 'linkLastPage'})
+        assert isinstance(last_page_element, Tag)
+        last_page_num = int(last_page_element.text)
+
+        return [f"strana-{num}" for num in range(2, last_page_num+1)]
 
     def parse_product_detail_urls_from_listing_page(self, page_content: str) -> list[str]:
         parser = BeautifulSoup(page_content, features='html.parser')
         products_div = parser.find(class_ = 'products')
         links: list[str] = []
 
-        print(type(products_div))
-        exit(1)
-        for product in products_div.find_all(class_='product'): #type: ignore
-            links.append(product.find('a').attrs['href']) #type: ignore
+        assert isinstance(products_div, Tag)
+        for product in products_div.find_all(class_='product'):
+            assert isinstance(product, Tag)
+
+            product_link = product.find('a')
+            assert isinstance(product_link, Tag)
+
+            links.append(str(product_link.attrs['href']))
 
         return links
 
