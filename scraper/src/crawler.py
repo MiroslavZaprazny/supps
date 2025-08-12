@@ -1,6 +1,6 @@
 import requests
 import logging
-from discovery import SiteParser, BrainMarketSiteParser
+from parser import SiteParser, BrainMarketSiteParser
 from brand import BrandConfig, Brand
 from db import Db 
 import os
@@ -50,11 +50,12 @@ class Crawler:
             #TODO: I dont really like that we only return a partial path would much rather to return the full urls
             product_page_urls = [f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in product_page_urls]
             products.extend(self._crawl_product_detail_pages(product_page_urls))
+        except requests.RequestException as e:
+            logging.error(f"Request with uri {url} failed with error: {repr(e)}")
+            return []
         except Exception as e:
-            logging.error(f"Request with uri {url} failed with error: {e}")
-
-            return products
-
+            logging.error(f"Failed to crawl category page {url} with error {repr(e)}")
+            return []
 
         #TODO: I dont really like that we only return a partial path would much rather to return the full urls
         paginated_product_listing_urls = [f"{url}/{url}" for url in self._site_parser.parse_paginated_product_listing_paths(category_page_res.text)]
@@ -68,7 +69,7 @@ class Crawler:
                 product_page_urls = [f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in product_page_urls]
                 products.extend(self._crawl_product_detail_pages(product_page_urls))
             except Exception as e:
-                logging.error(f"Request failed with error: {e}")
+                logging.error(f"Request failed with error: {str(e)}")
                 continue
 
         return products
