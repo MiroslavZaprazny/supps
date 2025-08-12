@@ -10,7 +10,7 @@ class SiteParser(ABC):
         pass
 
     @abstractmethod
-    def parse_product_detail_urls_from_listing_page(self, page_content: str) -> list[str]:
+    def parse_product_detail_paths_from_listing_page(self, page_content: str) -> list[str]:
         pass
 
     @abstractmethod
@@ -29,7 +29,7 @@ class BrainMarketSiteParser(SiteParser):
 
         return [f"strana-{num}" for num in range(2, last_page_num+1)]
 
-    def parse_product_detail_urls_from_listing_page(self, page_content: str) -> list[str]:
+    def parse_product_detail_paths_from_listing_page(self, page_content: str) -> list[str]:
         parser = BeautifulSoup(page_content, features='html.parser')
         products_div = parser.find(class_ = 'products')
         links: list[str] = []
@@ -49,14 +49,12 @@ class BrainMarketSiteParser(SiteParser):
         parser = BeautifulSoup(page_content, features='html.parser')
         name = self._parse_product_name(parser).strip()
 
-        product =  Product(
+        return Product(
             name=name,
             marketing_name= self._generate_marketing_name(name),
             quantity=self._parse_quanitity(name),
             price=self._parse_product_price(parser),
         )
-
-        return product
 
     def _parse_product_price(self, parser: BeautifulSoup) -> Decimal:
         price_tag = parser.find(class_='price-final-holder')

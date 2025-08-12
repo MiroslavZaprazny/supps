@@ -6,8 +6,6 @@ from db import Db
 import os
 from models import Product
 
-PRODUCT_BATCH_SIZE = 20
-
 class Crawler:
     def __init__(
             self,
@@ -20,12 +18,37 @@ class Crawler:
         self._db = db
 
     # Returns a list of individual product page urls based on a product listing page
-    def _crawl_listing_page(self, url: str) -> tuple[requests.Response, list[str]]:
-        res = requests.get(url)
-        if res.status_code != 200:
-            raise Exception(f"Request with uri {url} was not successful")
+    def _crawl_listing_page(self, url: str) -> list[Product]:
+        products: list[Product] = []
 
-        return (res, self._site_parser.parse_product_detail_urls_from_listing_page(res.text))
+        try:
+            res = requests.get(url)
+            if res.status_code != 200:
+                raise Exception(f"Request with uri {url} was not successful")
+        except requests.RequestException as e:
+            logging.error(f"Request with uri {url} failed with error: {repr(e)}")
+            return []
+
+        #TODO: I dont really like that we only return a partial path would much rather to return the full urls
+        product_page_urls = [f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(res.text)]
+        products.extend(self._crawl_product_detail_pages(product_page_urls))
+
+        #TODO: I dont really like that we only return a partial path would much rather to return the full urls
+        paginated_product_listing_urls = [f"{url}/{url}" for url in self._site_parser.parse_paginated_product_listing_paths(res.text)]
+        for product_listing_page_url in paginated_product_listing_urls:
+            try:
+                res = requests.get(product_listing_page_url)
+                if res.status_code != 200:
+                    raise Exception(f"Request with uri {url} was not successful")
+
+                #TODO: I dont really like that we only return a partial path would much rather to return the full urls
+                product_page_urls = [f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(res.text)]
+                products.extend(self._crawl_product_detail_pages(product_page_urls))
+            except requests.RequestException as e:
+                logging.error(f"Request failed with error: {str(e)}")
+                continue
+
+        return products
 
     def _crawl_product_detail_pages(self, urls: list[str]) -> list[Product]:
         products: list[Product] = []
@@ -45,44 +68,10 @@ class Crawler:
 
         return products
 
-    def _crawl_category_page(self, url: str) -> list[Product]:
-        products: list[Product] = []
-
-        try:
-            category_page_res, product_page_urls = self._crawl_listing_page(url)
-
-            #TODO: I dont really like that we only return a partial path would much rather to return the full urls
-            product_page_urls = [f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in product_page_urls]
-            products.extend(self._crawl_product_detail_pages(product_page_urls))
-        except requests.RequestException as e:
-            logging.error(f"Request with uri {url} failed with error: {repr(e)}")
-            return []
-        except Exception as e:
-            logging.error(f"Failed to crawl category page {url} with error {repr(e)}")
-            return []
-
-        #TODO: I dont really like that we only return a partial path would much rather to return the full urls
-        paginated_product_listing_urls = [f"{url}/{url}" for url in self._site_parser.parse_paginated_product_listing_paths(category_page_res.text)]
-        print(paginated_product_listing_urls)
-
-        for product_listing_page_url in paginated_product_listing_urls:
-            try:
-                _, product_page_urls = self._crawl_listing_page(product_listing_page_url)
-
-                #TODO: I dont really like that we only return a partial path would much rather to return the full urls
-                product_page_urls = [f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in product_page_urls]
-                products.extend(self._crawl_product_detail_pages(product_page_urls))
-            except Exception as e:
-                logging.error(f"Request failed with error: {str(e)}")
-                continue
-
-        return products
-
-
     def crawl(self):
-        for category_page_url in self._brand_config.category_page_urls:
+        for product_listing_url in self._brand_config.product_listing_urls:
             #todo save products
-            products = self._crawl_category_page(category_page_url)
+            products = self._crawl_listing_page(product_listing_url)
 
 
 class CrawlerFactory:
