@@ -37,7 +37,11 @@ class Crawler:
             if res.status_code != 200:
                 logging.error(f"Request with uri {url} was not successful")
 
-            products.append(self._site_parser.parse_product(res.text))
+            try:
+                products.append(self._site_parser.parse_product(res.text))
+            except Exception as e:
+                logging.error(f"Failed to parse product with error {repr(e)}")
+                continue
 
         return products
 

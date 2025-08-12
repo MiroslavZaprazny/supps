@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from models import Product
 from decimal import Decimal
 from bs4 import BeautifulSoup, Tag
+import re
 
 class SiteParser(ABC):
     @abstractmethod
@@ -47,20 +48,17 @@ class BrainMarketSiteParser(SiteParser):
     def parse_product(self, page_content: str) -> Product:
         parser = BeautifulSoup(page_content, features='html.parser')
         name = self._parse_product_name(parser).strip()
-        print(f"name: {name}")
 
         product =  Product(
             name=name,
             marketing_name= self._generate_marketing_name(name),
-            quantity=100,
-            price=Decimal(self._parse_product_price(parser)),
+            quantity=self._parse_quanitity(name),
+            price=self._parse_product_price(parser),
         )
-
-        print(repr(product))
 
         return product
 
-    def _parse_product_price(self, parser: BeautifulSoup) -> str:
+    def _parse_product_price(self, parser: BeautifulSoup) -> Decimal:
         price_tag = parser.find(class_='price-final-holder')
         assert isinstance(price_tag, Tag)
 
@@ -68,7 +66,7 @@ class BrainMarketSiteParser(SiteParser):
         assert isinstance(contents, str)
         contents = contents.strip()
 
-        return contents[contents.find('€')+1:]
+        return Decimal(contents[contents.find('€')+1:].replace(',', '.'))
 
 
     def _parse_product_name(self, parser: BeautifulSoup) -> str:
@@ -84,24 +82,27 @@ class BrainMarketSiteParser(SiteParser):
 
         We try to parse the string so that we can have some short pretty name instead of a looooong detailed one
     """
-    def _generate_marketing_name(self, full_name: str) -> str:
-        sub = full_name.find(',')
+    def _generate_marketing_name(self, title: str) -> str:
+        sub = title.find(',')
         if sub == -1:
-            return full_name
+            return title
 
-        return full_name[:sub]
+        return title[:sub]
 
     """
-        Some products can have additional info in the name, for eg.
+        Some products can have the quantity specified in the title which we can take advatage of for eg. 
 
         BrainMax Sleep Magnesium, 320 mg, 100 kapsúl (Horčík, GABA, L-theanin, Vitamín B6, šťava z višne)
 
-        We try to parse the string and retrieve the quantity for the title 
+        We prioritize the num of capsules over the grammage/volume, if they are both present
     """
-    # def _parse_quanitity(self, full_name: str) -> str:
-    #     sub = full_name.find(',')
-    #     if sub == -1:
-    #         return full_name
+    def _parse_quanitity(self, title: str) -> int:
+        capsule_match = re.search(r'(\d+)\s+(?:\w+\s+)?kapsúl', title)
+        if capsule_match:
+            return int(capsule_match.group(1))
 
-    #     return full_name[:sub]
+        grammage_match = re.search(r'(\d+)\s+(?:ml|mg|g)', title)
+        if grammage_match:
+            return int(grammage_match.group(1))
 
+        raise Exception(f"Unable to parse quantity for product with title {title}")
