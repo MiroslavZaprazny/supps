@@ -76,16 +76,33 @@ class BrainMarketSiteParser(SiteParser):
     """
         Some products can have additional info in the name, for eg.
 
-        BrainMax Sleep Magnesium, 320 mg, 100 kapsúl (Horčík, GABA, L-theanin, Vitamín B6, šťava z višne)
+        "BrainMax Sleep Magnesium, 320 mg, 100 kapsúl (Horčík, GABA, L-theanin, Vitamín B6, šťava z višne)"
+        or "BrainMax Berberin 500 mg, 90 rastlinných kapsúl"
 
-        We try to parse the string so that we can have some short pretty name instead of a looooong detailed one
+        When parsing the title we look for 3 things:
+            - a dot
+            - capsule count
+            - grammage count
+
+        We then slice the title by the first occurrence of either of those
+        So in the examples given above we will return "BrainMax Sleep Magnesium" and "BrainMax Berberin"
     """
     def _generate_marketing_name(self, title: str) -> str:
         sub = title.find(',')
         if sub == -1:
             return title
+       
+        terminators = [sub]
 
-        return title[:sub]
+        capsule_match = re.search(r'(\d+)\s+(?:\w+\s+)?kapsúl', title)
+        if capsule_match:
+            terminators.append(capsule_match.start())
+
+        grammage_match = re.search(r'(\d+)\s+(?:ml|mg|g)', title)
+        if grammage_match:
+            terminators.append(grammage_match.start())
+
+        return title[:min(terminators)]
 
     """
         Some products can have the quantity specified in the title which we can take advatage of for eg. 
