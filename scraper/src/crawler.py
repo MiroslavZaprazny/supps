@@ -5,6 +5,7 @@ from brand import BrandConfig, Brand
 from db import Db 
 import os
 from models import Product
+from sqlalchemy.orm import Session
 
 class Crawler:
     def __init__(
@@ -61,7 +62,9 @@ class Crawler:
                 logging.error(f"Request with uri {url} was not successful")
 
             try:
-                products.append(self._site_parser.parse_product(res.text))
+                product = self._site_parser.parse_product(res.text)
+                product.add_url(url)
+                products.append(product)
             except Exception as e:
                 logging.error(f"Failed to parse product with error {repr(e)}")
                 continue
@@ -73,6 +76,9 @@ class Crawler:
             #todo save products
             products = self._crawl_listing_page(product_listing_url)
 
+            with Session(self._db.engine()) as session:
+                session.add_all(products)
+                session.commit()
 
 class CrawlerFactory:
     def get_crawler(self, brand: Brand) -> Crawler:

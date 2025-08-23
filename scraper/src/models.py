@@ -7,10 +7,11 @@ class Base(DeclarativeBase):
     pass
 
 class Product(Base):
-    __tablename__ = 'product_page'
+    __tablename__ = 'products'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
+    url: Mapped[str] = mapped_column(String(255))
     marketing_name: Mapped[str] = mapped_column(String(255))
     quantity: Mapped[int] = mapped_column(Integer())
     price: Mapped[Decimal] = mapped_column(DECIMAL(10, 2))
@@ -22,3 +23,6 @@ class Product(Base):
         self.price = price
         self.created_at = datetime.now()
         self.marketing_name = marketing_name
+
+    def add_url(self, url: str):
+        self.url = url
