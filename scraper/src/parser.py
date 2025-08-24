@@ -88,11 +88,11 @@ class BrainMarketSiteParser(SiteParser):
         So in the examples given above we will return "BrainMax Sleep Magnesium" and "BrainMax Berberin"
     """
     def _generate_marketing_name(self, title: str) -> str:
-        sub = title.find(',')
-        if sub == -1:
-            return title
-       
-        terminators = [sub]
+        terminators: list[int] = []
+        dot = title.find(',')
+
+        if dot != -1:
+            terminators.append(dot)
 
         capsule_match = re.search(r'(\d+)\s+(?:\w+\s+)?kapsúl', title)
         if capsule_match:
@@ -101,6 +101,9 @@ class BrainMarketSiteParser(SiteParser):
         grammage_match = re.search(r'(\d+)\s+(?:ml|mg|g)', title)
         if grammage_match:
             terminators.append(grammage_match.start())
+
+        if not terminators:
+            return title
 
         return title[:min(terminators)]
 
