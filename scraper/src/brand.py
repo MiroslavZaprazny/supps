@@ -9,7 +9,7 @@ class BrandConfig:
         config = load_brand_config(brand)
 
         self.base_url = config['base_url']
-        self.category_page_urls: list[str] = [f"{self.base_url}{category_page_url}" for category_page_url in config['category_page_urls']]
+        self.product_listing_urls: list[str] = [f"{self.base_url}{category_page_url}" for category_page_url in config['product_listing_pages']]
 
 
 def load_brand_config(brand: Brand) -> dict[str, str]:

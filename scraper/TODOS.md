@@ -1,0 +1,2 @@
+- Handle duplicate products
+- add asyncio.Semaphore
