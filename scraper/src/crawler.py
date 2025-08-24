@@ -6,6 +6,19 @@ from db import Db
 import os
 from models import Product
 from sqlalchemy.orm import Session
+import asyncio
+import aiohttp
+
+class ProductDetailCrawlResult:
+    def __init__(self, err: Exception|None, product: Product|None):
+        if err is None and product is None:
+            raise Exception("Both error and product cannot be null")
+
+        if err is not None and product is not None:
+            raise Exception("Both error and product cannot be present at the same time")
+
+        self.err = err
+        self.product = product
 
 class Crawler:
     def __init__(
@@ -33,40 +46,48 @@ class Crawler:
         urls.extend([f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(res.text)])
 
         #TODO: I dont really like that we only return a partial path would much rather to return the full urls
-        paginated_product_listing_urls = [f"{url}/{paginated_listing_url}" for paginated_listing_url in self._site_parser.parse_paginated_product_listing_paths(res.text)]
+        # paginated_product_listing_urls = [f"{url}/{paginated_listing_url}" for paginated_listing_url in self._site_parser.parse_paginated_product_listing_paths(res.text)]
 
         # todo run concurrently??
-        for product_listing_page_url in paginated_product_listing_urls:
-            try:
-                res = requests.get(product_listing_page_url)
-                if res.status_code != 200:
-                    raise Exception(f"Request with uri {url} was not successful")
+        # for product_listing_page_url in paginated_product_listing_urls:
+        #     try:
+        #         res = requests.get(product_listing_page_url)
+        #         if res.status_code != 200:
+        #             raise Exception(f"Request with uri {url} was not successful")
 
-                #TODO: I dont really like that we only return a partial path would much rather to return the full urls
-                urls.extend([f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(res.text)])
-            except requests.RequestException as e:
-                logging.error(f"Request failed with error: {str(e)}")
-                continue
+        #         #TODO: I dont really like that we only return a partial path would much rather to return the full urls
+        #         urls.extend([f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(res.text)])
+        #     except requests.RequestException as e:
+        #         logging.error(f"Request failed with error: {str(e)}")
+        #         continue
 
         return urls
 
-    def _crawl_product_detail_pages(self, urls: list[str]) -> list[Product]:
-        products: list[Product] = []
-
-        # todo run concurrently??
-        for url in urls:
-            res = requests.get(url)
-
-            if res.status_code != 200:
-                logging.error(f"Request with uri {url} was not successful")
-
-            try:
-                product = self._site_parser.parse_product(res.text)
+    async def _parse_product_from_detail_page(self, session: aiohttp.ClientSession, url: str) -> ProductDetailCrawlResult:
+        try:
+            async with session.get(url) as res:
+                content = await res.text()
+                product = self._site_parser.parse_product(content)
                 product.add_url(url)
-                products.append(product)
-            except Exception as e:
-                logging.error(f"Failed to parse product with error {repr(e)}")
+
+            return ProductDetailCrawlResult(None, product)
+        except Exception as e:
+            return ProductDetailCrawlResult(e, None)
+
+    async def _crawl_product_detail_pages(self, urls: list[str]) -> list[Product]:
+        products: list[Product] = []
+        results: list[ProductDetailCrawlResult] = []
+
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session:
+            tasks = [self._parse_product_from_detail_page(session, url) for url in urls]
+            results = await asyncio.gather(*tasks)
+
+        for result in results:
+            if result.err is not None:
+                logging.error(f"Failed to parse product with error {repr(result.err)}")
                 continue
+            elif result.product is not None:
+                products.append(result.product)
 
         return products
 
@@ -77,7 +98,8 @@ class Crawler:
 
             for urls in batch:
                 with Session(self._db.engine()) as session:
-                    session.add_all(self._crawl_product_detail_pages(urls))
+                    products = asyncio.run(self._crawl_product_detail_pages(urls))
+                    session.add_all(products)
                     session.commit()
 
 class CrawlerFactory:

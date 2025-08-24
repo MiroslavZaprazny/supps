@@ -2,6 +2,7 @@ from logger import init_logger
 import sys
 from crawler import CrawlerFactory
 from brand import Brand
+from datetime import datetime
 
 if __name__ == "__main__":
     args = sys.argv
@@ -18,4 +19,10 @@ if __name__ == "__main__":
 
     init_logger()
 
+    now = datetime.now()
     CrawlerFactory().get_crawler(brand).crawl()
+
+    after = datetime.now()
+    diff = (after - now).total_seconds()
+
+    print(f"Ran for {diff}s")
