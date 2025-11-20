@@ -41,7 +41,7 @@ class BrainMarketSiteParser(SiteParser):
             product_link = product.find('a')
             assert isinstance(product_link, Tag)
 
-            links.append(str(product_link.attrs['href']))
+            links.append(str(product_link.attrs['href']).rstrip('/'))
 
         return links
 
@@ -80,7 +80,7 @@ class BrainMarketSiteParser(SiteParser):
         or "BrainMax Berberin 500 mg, 90 rastlinných kapsúl"
 
         When parsing the title we look for 3 things:
-            - a dot
+            - a comma
             - capsule count
             - grammage count
 

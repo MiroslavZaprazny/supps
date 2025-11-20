@@ -13,15 +13,18 @@ class Crawler:
             self,
             brand_config: BrandConfig,
             site_parser: SiteParser,
-            db: Db
+            db: Db,
+            semaphore: asyncio.Semaphore,
         ):
         self._brand_config = brand_config
         self._site_parser = site_parser
         self._db = db
+        self._semaphore = semaphore
 
     async def _fetch_contents(self, session: aiohttp.ClientSession, url: str) -> str:
-        async with session.get(url) as res:
-            return await res.text()
+        async with self._semaphore:
+            async with session.get(url) as res:
+                return  await res.text()
 
     async def _crawl_listing_page(self, url: str) -> list[str]:
         product_detail_urls: list[str] = []
@@ -30,7 +33,7 @@ class Crawler:
             contents = await self._fetch_contents(session, url)
 
             #TODO: I dont really like that we only return a partial path would much rather to return the full urls
-            product_detail_urls.extend([f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(contents)])
+            product_detail_urls.extend([f"{self._brand_config.base_url}{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(contents)])
 
             #TODO: I dont really like that we only return a partial path would much rather to return the full urls
             paginated_product_listing_urls = [f"{url}/{paginated_listing_url}" for paginated_listing_url in self._site_parser.parse_paginated_product_listing_paths(contents)]
@@ -42,7 +45,7 @@ class Crawler:
                     continue
 
                 assert isinstance(result, str)
-                product_detail_urls.extend([f"{self._brand_config.base_url}/{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(result)])
+                product_detail_urls.extend([f"{self._brand_config.base_url}{product_page_url}" for product_page_url in self._site_parser.parse_product_detail_paths_from_listing_page(result)])
 
         return product_detail_urls
 
@@ -86,6 +89,6 @@ class CrawlerFactory:
     def get_crawler(self, brand: Brand) -> Crawler:
         match brand:
             case Brand.BRAINMARKET:
-                return Crawler(BrandConfig(brand), BrainMarketSiteParser(), Db(os.environ['DATABASE_URL']))
+                return Crawler(BrandConfig(brand), BrainMarketSiteParser(), Db(os.environ['DATABASE_URL']), asyncio.Semaphore(10))
             case _:
                 raise Exception(f"Unimplemented site {brand} crawler")
