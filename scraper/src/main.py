@@ -2,6 +2,7 @@ from logger import init_logger
 import sys
 from crawler import CrawlerFactory
 from brand import Brand
+import asyncio
 
 if __name__ == "__main__":
     args = sys.argv
@@ -18,4 +19,4 @@ if __name__ == "__main__":
 
     init_logger()
 
-    CrawlerFactory().get_crawler(brand).crawl()
+    asyncio.run(CrawlerFactory().get_crawler(brand).crawl())
